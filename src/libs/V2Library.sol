@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 import {IPair} from "src/interfaces/IPair.sol";
 
 library V2Library {
-    bytes32 public constant INIT_BYTECODE_HASH = hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f";
+    bytes32 public constant INIT_BYTECODE_HASH = 0xfa33cd26d44b535f4ac3eec567006521daa86dfa773f018387ba011fbf110101;
 
     error V2Library_ZeroAddress();
     error V2Library_IdenticalAddress();
