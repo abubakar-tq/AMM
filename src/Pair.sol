@@ -1,21 +1,5 @@
-// Implement a minimal Pair that supports:
-
-// swap(amount0Out, amount1Out, to, data)
-
-// fee-adjusted invariant check (balance0Adjusted * balance1Adjusted >= reserve0 * reserve1 * 1000^2)
-
-// reserve updates (_update)
-
-// events
-// mint(to) (adds liquidity, mints LP tokens)
 
 // burn(to) (removes liquidity, burns LP tokens)
-
-// MINIMUM_LIQUIDITY lock
-
-// correct sqrt(x*y) logic for initial mint
-
-// proportional mint/burn thereafter
 
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;

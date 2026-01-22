@@ -57,7 +57,7 @@ library V2Library {
         if (reserveA <= 0 || reserveB <= 0) revert V2Library_InsufficientLiquidity();
         amountB = (amountA * reserveB) / reserveA;
     }
-
+    
     //Derive from constant product formula
     // (x+dx)(y-dy) = xy
     // y+dy= xy/(x+dx)

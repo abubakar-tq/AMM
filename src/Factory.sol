@@ -4,14 +4,15 @@ pragma solidity ^0.8.30;
 import {V2Library} from "src/libs/V2Library.sol";
 import {IPair} from "src/interfaces/IPair.sol";
 import {Pair} from "src/Pair.sol";
+import {IFactory} from "src/interfaces/IFactory.sol";
 
-contract Factory {
+contract Factory is IFactory {
     address feeReceiver;
     address feeSetter;
 
     mapping(address => mapping(address => address)) public getPair;
 
-    event PairCreated(address indexed token0, address indexed token1, address pair, uint256);
+    
 
     address[] public allPairs;
 
