@@ -3,7 +3,6 @@ pragma solidity ^0.8.30;
 
 import {V2Library} from "src/libs/V2Library.sol";
 import {IPair} from "src/interfaces/IPair.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Pair} from "src/Pair.sol";
 
 contract Factory {

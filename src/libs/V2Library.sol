@@ -48,7 +48,7 @@ library V2Library {
         (reserveA, reserveB) = token0 == tokenA ? (reserve0, reserve1) : (reserve1, reserve0);
     }
 
-    // Formula For price quotes
+    // Formula For quotes
     // priceB = reserveB/reserveA (interms of A)
     // amountB = amountA * reserveB /reserveA
     // quote
