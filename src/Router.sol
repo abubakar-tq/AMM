@@ -18,7 +18,7 @@ contract Router {
     error Router_InsufficientOutputAmount();
     error Router_ZeroAddress();
     error Router_IdenticalAddress();
-    error V2Library_InsufficientInputAmount();
+    error Router_InsufficientInputAmount();
 
     modifier ensure(uint256 deadline) {
         if (deadline < block.timestamp) revert Router_Expired();
@@ -126,18 +126,45 @@ contract Router {
             uint256 amountBOptimal = V2Library.quote(amountADesired, reserveA, reserveB);
             if (amountBOptimal <= amountBDesired) {
                 if (amountBOptimal < amountBMin) {
-                    revert V2Library_InsufficientInputAmount();
+                    revert Router_InsufficientInputAmount();
                 }
                 amountA = amountADesired;
                 amountB = amountBOptimal;
             } else {
                 uint256 amountAOptimal = V2Library.quote(amountBDesired, reserveB, reserveA);
                 if (amountAOptimal < amountAMin) {
-                    revert V2Library_InsufficientInputAmount();
+                    revert Router_InsufficientInputAmount();
                 }
                 amountA = amountAOptimal;
                 amountB = amountBDesired;
             }
+        }
+    }
+
+    function burnLiquidity(
+        address tokenA,
+        address tokenB,
+        uint256 liquidity,
+        uint256 amountAMin,
+        uint256 amountBMin,
+        address to,
+        uint256 deadline
+    ) external ensure(deadline) returns (uint256 amountA, uint256 amountB) {
+        address pair = V2Library.pairFor(FACTORY, tokenA, tokenB);
+
+        IERC20(pair).safeTransferFrom(msg.sender, pair, liquidity);
+
+        (uint256 amount0, uint256 amount1) = IPair(pair).burn(to);
+
+        (address token0,) = V2Library.sortTokens(tokenA, tokenB);
+
+        (amountA, amountB) = tokenA == token0 ? (amount0, amount1) : (amount1, amount0);
+
+        if (amountA < amountAMin) {
+            revert Router_InsufficientOutputAmount();
+        }
+        if (amountB < amountBMin) {
+            revert Router_InsufficientOutputAmount();
         }
     }
 }

@@ -1,4 +1,3 @@
-
 // burn(to) (removes liquidity, burns LP tokens)
 
 // SPDX-License-Identifier: MIT
@@ -28,6 +27,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     error Pair_InsufficientLiquidity();
     error Pair_InvalidTo();
     error Pair_InsufficientInputAmount();
+    error Pair_InsufficientLiquidityBurned();
 
     event Sync(uint112 reserve0, uint112 reserve1);
     event Mint(address indexed sender, uint256 amount0, uint256 amount1);
@@ -66,10 +66,9 @@ contract Pair is ReentrancyGuard, ERC20 {
         if (amount0Out > _reserve0 || amount1Out > _reserve1) revert Pair_InsufficientLiquidity();
         if (to == token0 || to == token1) revert Pair_InvalidTo();
 
-         uint256 balance0;
-         uint256 balance1;
+        uint256 balance0;
+        uint256 balance1;
 
-        
         IERC20(token0).safeTransfer(to, amount0Out);
         IERC20(token1).safeTransfer(to, amount1Out);
 
@@ -81,12 +80,12 @@ contract Pair is ReentrancyGuard, ERC20 {
         if (amount0In <= 0 && amount1In <= 0) revert Pair_InsufficientInputAmount();
 
         {
-        uint256 balance0Adjusted = (balance0 * 1000) - (amount0In * 3); // 0.003% fee
-        uint256 balance1Adjusted = (balance1 * 1000) - (amount1In * 3);
+            uint256 balance0Adjusted = (balance0 * 1000) - (amount0In * 3); // 0.003% fee
+            uint256 balance1Adjusted = (balance1 * 1000) - (amount1In * 3);
 
-        if (balance0Adjusted * balance1Adjusted < uint256(_reserve0) * uint256(_reserve1) * (1000 ** 2)) {
-            revert Pair_InsufficientInputAmount();
-        }
+            if (balance0Adjusted * balance1Adjusted < uint256(_reserve0) * uint256(_reserve1) * (1000 ** 2)) {
+                revert Pair_InsufficientInputAmount();
+            }
         }
         _update(uint112(balance0), uint112(balance1), _reserve0, _reserve1);
 
@@ -140,5 +139,32 @@ contract Pair is ReentrancyGuard, ERC20 {
         _mint(_to, liquidity);
 
         emit Mint(msg.sender, amount0, amount1);
+    }
+
+    // Burn Formula
+    // amount0 = LPburned/TotalSupply * reserve0
+    // amount1 = LPburned/TotalSupply * reserve1
+    function burn(address to) external returns (uint256 amount0, uint256 amount1) {
+        (uint112 _reserve0, uint112 _reserve1,) = getReserves();
+
+        uint256 liquidity = balanceOf[address(this)];
+        uint256 balance0 = IERC20(token0).balanceOf(address(this));
+        uint256 balance1 = IERC20(token1).balanceOf(address(this));
+
+        amount0 = (liquidity * balance0) / totalSupply;
+        amount1 = (liquidity * balance1) / totalSupply;
+
+        if (amount0 <= 0 || amount1 <= 0) revert Pair_InsufficientLiquidityBurned();
+
+        _burn(address(this), liquidity);
+        IERC20(token0).safeTransfer(to, amount0);
+        IERC20(token1).safeTransfer(to, amount1);
+
+        balance0 = IERC20(token0).balanceOf(address(this));
+        balance1 = IERC20(token1).balanceOf(address(this));
+
+        _update(uint112(balance0), uint112(balance1), _reserve0, _reserve1);
+
+        emit Burn(msg.sender, amount0, amount1, to);
     }
 }

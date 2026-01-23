@@ -6,4 +6,5 @@ interface IPair {
     function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external;
     function initialize(address _token0, address _token1) external;
     function mint(address to) external returns (uint256 liquidity);
+    function burn(address to) external returns (uint256 amount0, uint256 amount1);
 }
