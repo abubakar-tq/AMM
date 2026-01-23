@@ -12,8 +12,6 @@ contract Factory is IFactory {
 
     mapping(address => mapping(address => address)) public getPair;
 
-    
-
     address[] public allPairs;
 
     error Factory_IdenticalAddress();
