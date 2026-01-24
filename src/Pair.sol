@@ -8,6 +8,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC20} from "./ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IV2Callee} from "src/interfaces/IV2Callee.sol";
 
 contract Pair is ReentrancyGuard, ERC20 {
     using SafeERC20 for IERC20;
@@ -60,7 +61,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     // x0= x- current_balance0
     // y0= y- current_balance1
 
-    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata /*data*/ ) external nonReentrant {
+    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data ) external nonReentrant {
         if (amount0Out <= 0 && amount1Out <= 0) revert Pair_InsufficientOutputAmount();
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
         if (amount0Out > _reserve0 || amount1Out > _reserve1) revert Pair_InsufficientLiquidity();
@@ -71,6 +72,10 @@ contract Pair is ReentrancyGuard, ERC20 {
 
         IERC20(token0).safeTransfer(to, amount0Out);
         IERC20(token1).safeTransfer(to, amount1Out);
+
+        if (data.length > 0) {
+            IV2Callee(to).V2Call(msg.sender, amount0Out, amount1Out, data);
+        }
 
         balance0 = IERC20(token0).balanceOf(address(this));
         balance1 = IERC20(token1).balanceOf(address(this));
