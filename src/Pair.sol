@@ -23,6 +23,9 @@ contract Pair is ReentrancyGuard, ERC20 {
     uint112 private reserve1;
     uint32 private blockTimestampLast;
 
+    uint256 public price0CumulativeLast;
+    uint256 public price1CumulativeLast;
+
     error Pair_OnlyFactoryCanCall();
     error Pair_InsufficientOutputAmount();
     error Pair_InsufficientLiquidity();
@@ -61,7 +64,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     // x0= x- current_balance0
     // y0= y- current_balance1
 
-    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data ) external nonReentrant {
+    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external nonReentrant {
         if (amount0Out <= 0 && amount1Out <= 0) revert Pair_InsufficientOutputAmount();
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
         if (amount0Out > _reserve0 || amount1Out > _reserve1) revert Pair_InsufficientLiquidity();
@@ -103,10 +106,44 @@ contract Pair is ReentrancyGuard, ERC20 {
         _blockTimestampLast = blockTimestampLast;
     }
 
+    // TWAP (time-weighted average price)
+    //
+    // Over [T0, Tn]:
+    //   TWAP = ( Σ (Ti+1 - Ti) * Pi ) / (Tn - T0)
+    //
+    // Track a cumulative “price * time”:
+    //   C(Tk) = Σ_{i=0..k-1} (Ti+1 - Ti) * Pi
+    // so over any window [Tk, Tn]:
+    //   Σ_{i=k..n-1} (Ti+1 - Ti) * Pi = C(Tn) - C(Tk)
+    //
+    // Therefore:
+    //   TWAP[Tk..Tn] = (C(Tn) - C(Tk)) / (Tn - Tk)
+    //
+    // For current time T > Tn, assuming price is constant at Pn on [Tn, T):
+    //   C(T) = C(Tn) + (T - Tn) * Pn
+    //   TWAP[Tk..T] = (C(T) - C(Tk)) / (T - Tk)
+
     // update reserves and, on the first call per block, price accumulators
     function _update(uint112 balance0, uint112 balance1, uint112, /*_reserve0*/ uint112 /*_reserve1*/ ) private {
         uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
-        // uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
+
+        uint32 timeElapsed;
+        unchecked {
+            timeElapsed = blockTimestamp - blockTimestampLast; // wraps mod 2^32
+        }
+
+        if (timeElapsed > 0 && reserve0 != 0 && reserve1 != 0) {
+            // Accumulate price*time in Q112.112 fixed-point.
+            // Wrapping (mod 2^256) is intentional: TWAP uses differences between two cumulative
+            // snapshots; modular subtraction gives the correct delta even if wrapped in between.
+            uint256 price0Q112 = (uint256(reserve1) << 112) / reserve0;
+            uint256 price1Q112 = (uint256(reserve0) << 112) / reserve1;
+
+            unchecked {
+                price0CumulativeLast += price0Q112 * uint256(timeElapsed);
+                price1CumulativeLast += price1Q112 * uint256(timeElapsed);
+            }
+        }
 
         reserve0 = balance0;
         reserve1 = balance1;
