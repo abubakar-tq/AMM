@@ -43,7 +43,7 @@ library V2Library {
     {
         (address token0,) = sortTokens(tokenA, tokenB);
 
-        (uint256 reserve0, uint256 reserve1,) = IPair(pairFor(factory, tokenA, tokenB)).getReserves();
+        (uint112 reserve0, uint112 reserve1,) = IPair(pairFor(factory, tokenA, tokenB)).getReserves();
 
         (reserveA, reserveB) = token0 == tokenA ? (reserve0, reserve1) : (reserve1, reserve0);
     }
