@@ -1,66 +1,46 @@
-## Foundry
+# AMM (Uniswap V2‑style) — Foundry
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Minimal constant‑product AMM implementation built with Foundry. The core includes a factory, pair (LP token), router, and library helpers.
 
-Foundry consists of:
+## Contracts
+- `src/Factory.sol`: creates pairs with CREATE2 and tracks pair registry.
+- `src/Pair.sol`: constant‑product pool + LP token (mint, swap), flashswap callback hook, TWAP accumulators.
+- `src/Router.sol`: add liquidity + swap helpers.
+- `src/ERC20.sol`: internal ERC20 used for LP token.
+- `src/libs/V2Library.sol`: reserve/amount math and pair address derivation.
+- `src/interfaces/*`: interfaces for factory/pair/flashswap callback.
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## Features
+- Constant‑product swaps with fee.
+- Liquidity minting (initial + proportional).
+- Flashswap callback (`IV2Callee`).
+- TWAP accumulators (`price0CumulativeLast`, `price1CumulativeLast`).
 
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+## Layout
+```
+src/
+  Factory.sol
+  Pair.sol
+  Router.sol
+  ERC20.sol
+  libs/V2Library.sol
+  interfaces/
+    IFactory.sol
+    IPair.sol
+    IERC20.sol
+    IV2Callee.sol
 ```
 
-### Test
-
-```shell
-$ forge test
+## Build
+```bash
+forge build
 ```
 
-### Format
-
-```shell
-$ forge fmt
+## Tests
+```bash
+forge test
 ```
 
-### Gas Snapshots
+## Notes
+- Don't use in production! For educational/demonstration purposes only.
 
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
