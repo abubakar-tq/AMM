@@ -1,5 +1,3 @@
-// burn(to) (removes liquidity, burns LP tokens)
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
@@ -9,6 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ERC20} from "./ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IV2Callee} from "src/interfaces/IV2Callee.sol";
+import {IFactory} from "src/interfaces/IFactory.sol";
 
 contract Pair is ReentrancyGuard, ERC20 {
     using SafeERC20 for IERC20;
@@ -25,6 +24,7 @@ contract Pair is ReentrancyGuard, ERC20 {
 
     uint256 public price0CumulativeLast;
     uint256 public price1CumulativeLast;
+    uint256 public kLast;
 
     error Pair_OnlyFactoryCanCall();
     error Pair_InsufficientOutputAmount();
@@ -166,6 +166,8 @@ contract Pair is ReentrancyGuard, ERC20 {
         uint256 amount0 = balance0 - _reserve0;
         uint256 amount1 = balance1 - _reserve1;
 
+        bool feeOn = _mintFee(_reserve0, _reserve1);
+
         if (totalSupply == 0) {
             liquidity = Math.sqrt(amount0 * amount1) - MINIMUM_LIQUIDITY;
             _mint(address(0), MINIMUM_LIQUIDITY);
@@ -174,11 +176,10 @@ contract Pair is ReentrancyGuard, ERC20 {
         }
         if (liquidity <= 0) revert Pair_InsufficientLiquidity();
 
-        totalSupply += liquidity;
-
         _update(uint112(balance0), uint112(balance1), _reserve0, _reserve1);
 
         _mint(_to, liquidity);
+        if (feeOn) kLast = uint256(reserve0) * uint256(reserve1);
 
         emit Mint(msg.sender, amount0, amount1);
     }
@@ -193,6 +194,8 @@ contract Pair is ReentrancyGuard, ERC20 {
         uint256 balance0 = IERC20(token0).balanceOf(address(this));
         uint256 balance1 = IERC20(token1).balanceOf(address(this));
 
+        bool feeOn = _mintFee(_reserve0, _reserve1);
+
         amount0 = (liquidity * balance0) / totalSupply;
         amount1 = (liquidity * balance1) / totalSupply;
 
@@ -206,7 +209,29 @@ contract Pair is ReentrancyGuard, ERC20 {
         balance1 = IERC20(token1).balanceOf(address(this));
 
         _update(uint112(balance0), uint112(balance1), _reserve0, _reserve1);
+        if (feeOn) kLast = uint256(reserve0) * uint256(reserve1);
 
         emit Burn(msg.sender, amount0, amount1, to);
+    }
+
+    // if fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
+    function _mintFee(uint112 _reserve0, uint112 _reserve1) private returns (bool feeOn) {
+        address feeTo = IFactory(factory).feeTo();
+        feeOn = feeTo != address(0);
+        uint256 _kLast = kLast; // gas savings
+        if (feeOn) {
+            if (_kLast != 0) {
+                uint256 rootK = Math.sqrt(uint256(_reserve0) * uint256(_reserve1));
+                uint256 rootKLast = Math.sqrt(_kLast);
+                if (rootK > rootKLast) {
+                    uint256 numerator = totalSupply * (rootK - rootKLast);
+                    uint256 denominator = (rootK * 5) + rootKLast;
+                    uint256 liquidity = numerator / denominator;
+                    if (liquidity > 0) _mint(feeTo, liquidity);
+                }
+            }
+        } else if (_kLast != 0) {
+            kLast = 0;
+        }
     }
 }
