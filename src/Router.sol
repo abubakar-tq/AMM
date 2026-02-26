@@ -19,8 +19,12 @@ contract Router {
     error Router_InsufficientInputAmount();
 
     modifier ensure(uint256 deadline) {
-        if (deadline < block.timestamp) revert Router_Expired();
+        _ensure(deadline);
         _;
+    }
+
+    function _ensure(uint256 deadline) internal {
+        if (deadline < block.timestamp) revert Router_Expired();
     }
 
     constructor(address _factory) {
