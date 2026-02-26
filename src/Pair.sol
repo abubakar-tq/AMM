@@ -32,6 +32,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     error Pair_InvalidTo();
     error Pair_InsufficientInputAmount();
     error Pair_InsufficientLiquidityBurned();
+    error Pair_AlreadyInitialized();
 
     event Sync(uint112 reserve0, uint112 reserve1);
     event Mint(address indexed sender, uint256 amount0, uint256 amount1);
@@ -55,6 +56,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     }
 
     function initialize(address _token0, address _token1) external onlyFactory(msg.sender) {
+        if (token0 != address(0) || token1 != address(0)) revert Pair_AlreadyInitialized();
         token0 = _token0;
         token1 = _token1;
     }
@@ -233,5 +235,21 @@ contract Pair is ReentrancyGuard, ERC20 {
         } else if (_kLast != 0) {
             kLast = 0;
         }
+    }
+
+    // force balances to match reserves
+    function sync() external nonReentrant {
+        _update(
+            uint112(IERC20(token0).balanceOf(address(this))),
+            uint112(IERC20(token1).balanceOf(address(this))),
+            reserve0,
+            reserve1
+        );
+    }
+
+    // transfer excess tokens to `to`
+    function skim(address to) external nonReentrant {
+        IERC20(token0).safeTransfer(to, IERC20(token0).balanceOf(address(this)) - reserve0);
+        IERC20(token1).safeTransfer(to, IERC20(token1).balanceOf(address(this)) - reserve1);
     }
 }
