@@ -23,7 +23,7 @@ contract Router {
         _;
     }
 
-    function _ensure(uint256 deadline) internal {
+    function _ensure(uint256 deadline) internal view {
         if (deadline < block.timestamp) revert Router_Expired();
     }
 
