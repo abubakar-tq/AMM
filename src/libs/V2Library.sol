@@ -23,12 +23,7 @@ library V2Library {
     // pairFor (CREATE2 address derivation)
     function pairFor(address factory, address tokenA, address tokenB) internal pure returns (address pair) {
         (address token0, address token1) = sortTokens(tokenA, tokenB);
-        bytes32 salt;
-        assembly {
-            mstore(0x00, token0)
-            mstore(0x20, token1)
-            salt := keccak256(0x00, 0x40)
-        }
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
 
         bytes32 h = (keccak256(abi.encodePacked(hex"ff", factory, salt, INIT_BYTECODE_HASH)));
 
