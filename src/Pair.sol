@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.33;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -33,6 +33,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     error Pair_InsufficientInputAmount();
     error Pair_InsufficientLiquidityBurned();
     error Pair_AlreadyInitialized();
+    error Pair_ReserveOverflow();
 
     event Sync(uint112 reserve0, uint112 reserve1);
     event Mint(address indexed sender, uint256 amount0, uint256 amount1);
@@ -97,7 +98,7 @@ contract Pair is ReentrancyGuard, ERC20 {
                 revert Pair_InsufficientInputAmount();
             }
         }
-        _update(uint112(balance0), uint112(balance1), _reserve0, _reserve1);
+        _update(balance0, balance1, _reserve0, _reserve1);
 
         emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
     }
@@ -126,7 +127,9 @@ contract Pair is ReentrancyGuard, ERC20 {
     //   TWAP[Tk..T] = (C(T) - C(Tk)) / (T - Tk)
 
     // update reserves and, on the first call per block, price accumulators
-    function _update(uint112 balance0, uint112 balance1, uint112, /*_reserve0*/ uint112 /*_reserve1*/ ) private {
+    function _update(uint256 balance0, uint256 balance1, uint112, /*_reserve0*/ uint112 /*_reserve1*/ ) private {
+        if (balance0 > type(uint112).max || balance1 > type(uint112).max) revert Pair_ReserveOverflow();
+
         uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
 
         uint32 timeElapsed;
@@ -147,8 +150,8 @@ contract Pair is ReentrancyGuard, ERC20 {
             }
         }
 
-        reserve0 = balance0;
-        reserve1 = balance1;
+        reserve0 = uint112(balance0);
+        reserve1 = uint112(balance1);
         blockTimestampLast = blockTimestamp;
         emit Sync(reserve0, reserve1);
     }
@@ -178,7 +181,7 @@ contract Pair is ReentrancyGuard, ERC20 {
         }
         if (liquidity <= 0) revert Pair_InsufficientLiquidity();
 
-        _update(uint112(balance0), uint112(balance1), _reserve0, _reserve1);
+        _update(balance0, balance1, _reserve0, _reserve1);
 
         _mint(_to, liquidity);
         if (feeOn) kLast = uint256(reserve0) * uint256(reserve1);
@@ -210,7 +213,7 @@ contract Pair is ReentrancyGuard, ERC20 {
         balance0 = IERC20(token0).balanceOf(address(this));
         balance1 = IERC20(token1).balanceOf(address(this));
 
-        _update(uint112(balance0), uint112(balance1), _reserve0, _reserve1);
+        _update(balance0, balance1, _reserve0, _reserve1);
         if (feeOn) kLast = uint256(reserve0) * uint256(reserve1);
 
         emit Burn(msg.sender, amount0, amount1, to);
@@ -234,17 +237,13 @@ contract Pair is ReentrancyGuard, ERC20 {
             }
         } else if (_kLast != 0) {
             kLast = 0;
+            
         }
     }
 
     // force balances to match reserves
     function sync() external nonReentrant {
-        _update(
-            uint112(IERC20(token0).balanceOf(address(this))),
-            uint112(IERC20(token1).balanceOf(address(this))),
-            reserve0,
-            reserve1
-        );
+        _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)), reserve0, reserve1);
     }
 
     // transfer excess tokens to `to`

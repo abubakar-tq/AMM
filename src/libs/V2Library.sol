@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.33;
 
 import {IPair} from "src/interfaces/IPair.sol";
 
 library V2Library {
-    bytes32 public constant INIT_BYTECODE_HASH = 0x580cf254552199c9b47f10577d466b06e4b8e2213229041a79f1e9e7b6b2c625;
-
+    bytes32 public constant INIT_BYTECODE_HASH = 0xd34835ff4ca57e316f6be84412982456234b785887165b3b0d1d24b0cc8e77f2;
+    
     error V2Library_ZeroAddress();
     error V2Library_IdenticalAddress();
     error V2Library_InsufficientLiquidity();
@@ -23,12 +23,7 @@ library V2Library {
     // pairFor (CREATE2 address derivation)
     function pairFor(address factory, address tokenA, address tokenB) internal pure returns (address pair) {
         (address token0, address token1) = sortTokens(tokenA, tokenB);
-        bytes32 salt;
-        assembly {
-            mstore(0x00, token0)
-            mstore(0x20, token1)
-            salt := keccak256(0x00, 0x40)
-        }
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
 
         bytes32 h = (keccak256(abi.encodePacked(hex"ff", factory, salt, INIT_BYTECODE_HASH)));
 

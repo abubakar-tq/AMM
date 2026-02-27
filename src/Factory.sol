@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.33;
 
 import {V2Library} from "src/libs/V2Library.sol";
 import {IPair} from "src/interfaces/IPair.sol";
@@ -28,12 +28,7 @@ contract Factory is IFactory {
         if (tokenA == address(0) || tokenB == address(0)) revert Factory_ZeroAddress();
         if (getPair[tokenA][tokenB] != address(0)) revert Factory_PairExists();
         (address token0, address token1) = V2Library.sortTokens(tokenA, tokenB);
-        bytes32 salt;
-        assembly {
-            mstore(0x00, token0)
-            mstore(0x20, token1)
-            salt := keccak256(0x00, 0x40)
-        }
+        bytes32 salt = keccak256(abi.encodePacked(token0, token1));
 
         bytes memory bytecode = type(Pair).creationCode;
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.33;
 
 import {V2Library} from "src/libs/V2Library.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -19,8 +19,12 @@ contract Router {
     error Router_InsufficientInputAmount();
 
     modifier ensure(uint256 deadline) {
-        if (deadline < block.timestamp) revert Router_Expired();
+        _ensure(deadline);
         _;
+    }
+
+    function _ensure(uint256 deadline) internal view {
+        if (deadline < block.timestamp) revert Router_Expired();
     }
 
     constructor(address _factory) {
