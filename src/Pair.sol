@@ -192,7 +192,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     // Burn Formula
     // amount0 = LPburned/TotalSupply * reserve0
     // amount1 = LPburned/TotalSupply * reserve1
-    function burn(address to) external returns (uint256 amount0, uint256 amount1) {
+    function burn(address to) external nonReentrant returns (uint256 amount0, uint256 amount1) {
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
 
         uint256 liquidity = balanceOf[address(this)];
