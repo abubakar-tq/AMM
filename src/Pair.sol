@@ -164,7 +164,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     // (x0+dx )/(y0+dy) = y/x =>dy/dx = y/x (price before adding liquidity and after adding liquidity must be same)
     // L1-L0 / L0 = dx/x0 = dy/y0
     // For Amount
-    function mint(address _to) external onlyFactory(msg.sender) returns (uint256 liquidity) {
+    function mint(address _to) external nonReentrant returns (uint256 liquidity) {
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
         uint256 balance0 = IERC20(token0).balanceOf(address(this));
         uint256 balance1 = IERC20(token1).balanceOf(address(this));
