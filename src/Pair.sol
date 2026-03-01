@@ -70,7 +70,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external nonReentrant {
         if (amount0Out <= 0 && amount1Out <= 0) revert Pair_InsufficientOutputAmount();
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
-        if (amount0Out > _reserve0 || amount1Out > _reserve1) revert Pair_InsufficientLiquidity();
+        if (amount0Out >= _reserve0 || amount1Out >= _reserve1) revert Pair_InsufficientLiquidity();
         if (to == token0 || to == token1) revert Pair_InvalidTo();
 
         uint256 balance0;
