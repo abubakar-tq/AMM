@@ -127,7 +127,15 @@ contract Pair is ReentrancyGuard, ERC20 {
     //   TWAP[Tk..T] = (C(T) - C(Tk)) / (T - Tk)
 
     // update reserves and, on the first call per block, price accumulators
-    function _update(uint256 balance0, uint256 balance1, uint112, /*_reserve0*/ uint112 /*_reserve1*/ ) private {
+    function _update(
+        uint256 balance0,
+        uint256 balance1,
+        uint112,
+        /*_reserve0*/
+        uint112 /*_reserve1*/
+    )
+        private
+    {
         if (balance0 > type(uint112).max || balance1 > type(uint112).max) revert Pair_ReserveOverflow();
 
         uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
@@ -237,7 +245,6 @@ contract Pair is ReentrancyGuard, ERC20 {
             }
         } else if (_kLast != 0) {
             kLast = 0;
-            
         }
     }
 
