@@ -70,7 +70,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external nonReentrant {
         if (amount0Out <= 0 && amount1Out <= 0) revert Pair_InsufficientOutputAmount();
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
-        if (amount0Out > _reserve0 || amount1Out > _reserve1) revert Pair_InsufficientLiquidity();
+        if (amount0Out >= _reserve0 || amount1Out >= _reserve1) revert Pair_InsufficientLiquidity();
         if (to == token0 || to == token1) revert Pair_InvalidTo();
 
         uint256 balance0;
@@ -127,7 +127,15 @@ contract Pair is ReentrancyGuard, ERC20 {
     //   TWAP[Tk..T] = (C(T) - C(Tk)) / (T - Tk)
 
     // update reserves and, on the first call per block, price accumulators
-    function _update(uint256 balance0, uint256 balance1, uint112, /*_reserve0*/ uint112 /*_reserve1*/ ) private {
+    function _update(
+        uint256 balance0,
+        uint256 balance1,
+        uint112,
+        /*_reserve0*/
+        uint112 /*_reserve1*/
+    )
+        private
+    {
         if (balance0 > type(uint112).max || balance1 > type(uint112).max) revert Pair_ReserveOverflow();
 
         uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
@@ -164,7 +172,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     // (x0+dx )/(y0+dy) = y/x =>dy/dx = y/x (price before adding liquidity and after adding liquidity must be same)
     // L1-L0 / L0 = dx/x0 = dy/y0
     // For Amount
-    function mint(address _to) external onlyFactory(msg.sender) returns (uint256 liquidity) {
+    function mint(address _to) external nonReentrant returns (uint256 liquidity) {
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
         uint256 balance0 = IERC20(token0).balanceOf(address(this));
         uint256 balance1 = IERC20(token1).balanceOf(address(this));
@@ -192,7 +200,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     // Burn Formula
     // amount0 = LPburned/TotalSupply * reserve0
     // amount1 = LPburned/TotalSupply * reserve1
-    function burn(address to) external returns (uint256 amount0, uint256 amount1) {
+    function burn(address to) external nonReentrant returns (uint256 amount0, uint256 amount1) {
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
 
         uint256 liquidity = balanceOf[address(this)];
@@ -237,7 +245,6 @@ contract Pair is ReentrancyGuard, ERC20 {
             }
         } else if (_kLast != 0) {
             kLast = 0;
-            
         }
     }
 

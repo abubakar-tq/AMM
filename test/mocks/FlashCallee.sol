@@ -18,7 +18,16 @@ contract FlashCallee is IV2Callee {
         pair = _pair;
     }
 
-    function V2Call(address, uint256 /*amount0Out*/, uint256 /*amount1Out*/, bytes calldata data) external {
+    function V2Call(
+        address,
+        uint256,
+        /*amount0Out*/
+        uint256,
+        /*amount1Out*/
+        bytes calldata data
+    )
+        external
+    {
         require(msg.sender == pair, "Only pair");
         (uint256 amount0In, uint256 amount1In) = abi.decode(data, (uint256, uint256));
 
