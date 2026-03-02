@@ -13,5 +13,12 @@ exclude_lints = [
   "asm-keccak256",
 ]
 
+[invariant]
+runs = 128
+depth = 128
+seed = 0xabc931
+fail_on_revert = true    
+
+
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
