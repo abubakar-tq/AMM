@@ -3,6 +3,8 @@ pragma solidity 0.8.33;
 
 import {IERC20} from "src/interfaces/IERC20.sol";
 
+/// @title Minimal ERC20 with permit used for AMM LP tokens
+/// @notice Supplies ERC20 functionality plus EIP-2612 style permit
 contract ERC20 is IERC20 {
     string public constant name = "V2";
     string public constant symbol = "V2";
@@ -19,6 +21,7 @@ contract ERC20 is IERC20 {
     error ERC20_INVALID_SIGNATURE();
     error ERC20_EXPIRED();
 
+    /// @dev Initializes EIP-712 domain separator using current chain id
     constructor() {
         uint256 chainId;
         assembly {
@@ -35,39 +38,46 @@ contract ERC20 is IERC20 {
         );
     }
 
+    /// @dev Mint tokens to `to`
     function _mint(address to, uint256 value) internal {
         totalSupply += value;
         balanceOf[to] += value;
         emit Transfer(address(0), to, value);
     }
 
+    /// @dev Burn tokens from `from`
     function _burn(address from, uint256 value) internal {
         balanceOf[from] -= value;
         totalSupply -= value;
         emit Transfer(from, address(0), value);
     }
 
+    /// @dev Internal approve helper
     function _approve(address owner, address spender, uint256 value) private {
         allowance[owner][spender] = value;
         emit Approval(owner, spender, value);
     }
 
+    /// @dev Internal transfer helper
     function _transfer(address from, address to, uint256 value) private {
         balanceOf[from] -= value;
         balanceOf[to] += value;
         emit Transfer(from, to, value);
     }
 
+    /// @inheritdoc IERC20
     function approve(address spender, uint256 value) external returns (bool) {
         _approve(msg.sender, spender, value);
         return true;
     }
 
+    /// @inheritdoc IERC20
     function transfer(address to, uint256 value) external returns (bool) {
         _transfer(msg.sender, to, value);
         return true;
     }
 
+    /// @inheritdoc IERC20
     function transferFrom(address from, address to, uint256 value) external returns (bool) {
         if (allowance[from][msg.sender] != type(uint256).max) {
             allowance[from][msg.sender] -= value;
@@ -76,6 +86,14 @@ contract ERC20 is IERC20 {
         return true;
     }
 
+    /// @notice Approve via EIP-2612 signature
+    /// @param owner token owner
+    /// @param spender spender address
+    /// @param value allowance amount
+    /// @param deadline timestamp after which signature expires
+    /// @param v ECDSA v parameter
+    /// @param r ECDSA r parameter
+    /// @param s ECDSA s parameter
     function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
         external
     {

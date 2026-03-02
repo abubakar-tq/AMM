@@ -9,6 +9,9 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IV2Callee} from "src/interfaces/IV2Callee.sol";
 import {IFactory} from "src/interfaces/IFactory.sol";
 
+/// @title Constant-product AMM pair
+/// @notice Holds reserves, mints/burns LP tokens, and executes swaps with a 0.3% fee
+/// @dev ERC20 shares represent proportional claims on reserves; initialized by Factory
 contract Pair is ReentrancyGuard, ERC20 {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -47,6 +50,7 @@ contract Pair is ReentrancyGuard, ERC20 {
         address indexed to
     );
 
+    /// @dev Stores deploying factory for subsequent access control
     constructor() {
         factory = msg.sender;
     }
@@ -56,17 +60,25 @@ contract Pair is ReentrancyGuard, ERC20 {
         _;
     }
 
+    /// @notice One-time initialization of token addresses; callable only by factory
+    /// @param _token0 token sorted as token0
+    /// @param _token1 token sorted as token1
     function initialize(address _token0, address _token1) external onlyFactory(msg.sender) {
         if (token0 != address(0) || token1 != address(0)) revert Pair_AlreadyInitialized();
         token0 = _token0;
         token1 = _token1;
     }
 
-    // (x + x0) (y + y0)> x y
-    // (x + x0 - .3(x0)) (y + y0 - .3(y0)) > x y
-    // x0= x- current_balance0
-    // y0= y- current_balance1
+    // (x + x0)(y + y0) > xy
+    // (x + x0 - 0.3(x0))(y + y0 - 0.3(y0)) > xy
+    // x0 = x - current_balance0
+    // y0 = y - current_balance1
 
+    /// @notice Swap tokens with optional flash callback when `data` is non-empty
+    /// @param amount0Out amount of token0 to send to `to`
+    /// @param amount1Out amount of token1 to send to `to`
+    /// @param to recipient (and potential IV2Callee) of output tokens
+    /// @param data arbitrary data passed to IV2Callee; empty for standard swaps
     function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external nonReentrant {
         if (amount0Out <= 0 && amount1Out <= 0) revert Pair_InsufficientOutputAmount();
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
@@ -103,6 +115,7 @@ contract Pair is ReentrancyGuard, ERC20 {
         emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
     }
 
+    /// @notice Return stored reserves and last block timestamp
     function getReserves() public view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast) {
         _reserve0 = reserve0;
         _reserve1 = reserve1;
@@ -126,7 +139,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     //   C(T) = C(Tn) + (T - Tn) * Pn
     //   TWAP[Tk..T] = (C(T) - C(Tk)) / (T - Tk)
 
-    // update reserves and, on the first call per block, price accumulators
+    /// @dev Update reserves and TWAP accumulators using current balances
     function _update(
         uint256 balance0,
         uint256 balance1,
@@ -164,14 +177,17 @@ contract Pair is ReentrancyGuard, ERC20 {
         emit Sync(reserve0, reserve1);
     }
 
-    //  total Supply to check if its the first mint
-    //  balance - reserve => to get the extra tokens
-    //mint using the formula
-    // T+s/T = L1 / L0  ( incresase in shares is proportional to increae in value from L0 to L1)
-    // s = (L1-L0)/L0  * T
-    // (x0+dx )/(y0+dy) = y/x =>dy/dx = y/x (price before adding liquidity and after adding liquidity must be same)
-    // L1-L0 / L0 = dx/x0 = dy/y0
-    // For Amount
+    // totalSupply check shows first mint
+    // balance - reserve reveals newly supplied tokens
+    // Mint formula notes:
+    //   T + s / T = L1 / L0  (share increase tracks value growth)
+    //   s = (L1 - L0) / L0 * T
+    //   (x0 + dx) / (y0 + dy) = y / x => dy/dx = y/x to keep price constant
+    //   L1 - L0 / L0 = dx/x0 = dy/y0
+
+    /// @notice Mint LP tokens by depositing proportional token0 and token1
+    /// @param _to recipient of minted LP tokens
+    /// @return liquidity amount minted
     function mint(address _to) external nonReentrant returns (uint256 liquidity) {
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
         uint256 balance0 = IERC20(token0).balanceOf(address(this));
@@ -197,9 +213,13 @@ contract Pair is ReentrancyGuard, ERC20 {
         emit Mint(msg.sender, amount0, amount1);
     }
 
-    // Burn Formula
-    // amount0 = LPburned/TotalSupply * reserve0
-    // amount1 = LPburned/TotalSupply * reserve1
+    // Burn formula:
+    //   amount0 = LPburned / totalSupply * reserve0
+    //   amount1 = LPburned / totalSupply * reserve1
+
+    /// @notice Burn LP tokens held by the pair contract and withdraw underlying
+    /// @param to recipient of token0 and token1
+    /// @return amount0 token0 amount sent; amount1 token1 amount sent
     function burn(address to) external nonReentrant returns (uint256 amount0, uint256 amount1) {
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
 
@@ -227,7 +247,7 @@ contract Pair is ReentrancyGuard, ERC20 {
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
-    // if fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
+    /// @dev If fee is on, mints liquidity equal to 1/6 of sqrt(k) growth to feeTo
     function _mintFee(uint112 _reserve0, uint112 _reserve1) private returns (bool feeOn) {
         address feeTo = IFactory(factory).feeTo();
         feeOn = feeTo != address(0);
@@ -248,12 +268,12 @@ contract Pair is ReentrancyGuard, ERC20 {
         }
     }
 
-    // force balances to match reserves
+    /// @notice Force reserves to match current token balances
     function sync() external nonReentrant {
         _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)), reserve0, reserve1);
     }
 
-    // transfer excess tokens to `to`
+    /// @notice Transfer any excess tokens beyond reserves to `to`
     function skim(address to) external nonReentrant {
         IERC20(token0).safeTransfer(to, IERC20(token0).balanceOf(address(this)) - reserve0);
         IERC20(token1).safeTransfer(to, IERC20(token1).balanceOf(address(this)) - reserve1);

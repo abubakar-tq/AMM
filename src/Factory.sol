@@ -6,6 +6,9 @@ import {IPair} from "src/interfaces/IPair.sol";
 import {Pair} from "src/Pair.sol";
 import {IFactory} from "src/interfaces/IFactory.sol";
 
+/// @title Pair factory for the constant-product AMM
+/// @notice Deploys Pair contracts using CREATE2 and tracks fee configuration
+/// @dev Mirrors Uniswap V2 factory surface with simplified fee toggles
 contract Factory is IFactory {
     address feeReceiver;
     address feeSetter;
@@ -19,10 +22,15 @@ contract Factory is IFactory {
     error Factory_PairExists();
     error Factory_NotAllowed();
 
+    /// @param _feeSetter address allowed to configure fee receivers
     constructor(address _feeSetter) {
         feeSetter = _feeSetter;
     }
 
+    /// @notice Create a new pair for tokenA and tokenB if it does not exist
+    /// @param tokenA first token address
+    /// @param tokenB second token address
+    /// @return pair deployed pair address
     function createPair(address tokenA, address tokenB) public returns (address pair) {
         if (tokenA == tokenB) revert Factory_IdenticalAddress();
         if (tokenA == address(0) || tokenB == address(0)) revert Factory_ZeroAddress();
@@ -43,18 +51,23 @@ contract Factory is IFactory {
         emit PairCreated(token0, token1, pair, allPairs.length);
     }
 
+    /// @notice Total number of pairs created by the factory
     function allPairsLength() public view returns (uint256) {
         return allPairs.length;
     }
 
+    /// @notice Current address receiving protocol fees
     function feeTo() public view returns (address) {
         return feeReceiver;
     }
 
+    /// @notice Address allowed to update fee configuration
     function feeToSetter() public view returns (address) {
         return feeSetter;
     }
 
+    /// @notice Set the protocol fee receiver
+    /// @param _feeTo new fee receiver; zero address disables fee minting
     function setFeeTo(address _feeTo) public {
         if (msg.sender != feeSetter) {
             revert Factory_NotAllowed();
@@ -62,6 +75,8 @@ contract Factory is IFactory {
         feeReceiver = _feeTo;
     }
 
+    /// @notice Transfer fee-setter role to a new address
+    /// @param _feeToSetter new fee setter
     function setFeeToSetter(address _feeToSetter) public {
         if (msg.sender != feeSetter) {
             revert Factory_NotAllowed();
