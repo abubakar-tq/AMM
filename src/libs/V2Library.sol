@@ -47,12 +47,21 @@ library V2Library {
         (reserveA, reserveB) = token0 == tokenA ? (reserve0, reserve1) : (reserve1, reserve0);
     }
 
+    // Quote formula:
+    //   priceB = reserveB / reserveA (in terms of A)
+    //   amountB = amountA * reserveB / reserveA
+
     /// @notice Given some amount of tokenA, returns equivalent amount of tokenB using reserves
     function quote(uint256 amountA, uint256 reserveA, uint256 reserveB) internal pure returns (uint256 amountB) {
         if (amountA <= 0) revert V2Library_InsufficientInputAmount();
         if (reserveA <= 0 || reserveB <= 0) revert V2Library_InsufficientLiquidity();
         amountB = (amountA * reserveB) / reserveA;
     }
+
+    // Derived from constant product:
+    //   (x + dx)(y - dy) = xy
+    //   y + dy = xy / (x + dx)
+    //   dy = y * dx / (x + dx)
 
     /// @notice Calculates output given an input amount and reserves, after 0.3% fee
     function getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut)
@@ -66,6 +75,11 @@ library V2Library {
 
         amountOut = (amountInAfterFee * (reserveOut)) / ((reserveIn * 1000) + amountInAfterFee);
     }
+
+    // Derived with fee adjustment:
+    //   (x + dx)(y - dy) = xy
+    //   dx = x * dy / (y - dy) adjusted by 0.997 swap fee
+    //   dx_fee = dx / 0.997
 
     /// @notice Calculates required input to obtain a desired output after 0.3% fee
     function getAmountIn(uint256 amountOut, uint256 reserveIn, uint256 reserveOut)

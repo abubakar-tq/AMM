@@ -69,6 +69,11 @@ contract Pair is ReentrancyGuard, ERC20 {
         token1 = _token1;
     }
 
+    // (x + x0)(y + y0) > xy
+    // (x + x0 - 0.3(x0))(y + y0 - 0.3(y0)) > xy
+    // x0 = x - current_balance0
+    // y0 = y - current_balance1
+
     /// @notice Swap tokens with optional flash callback when `data` is non-empty
     /// @param amount0Out amount of token0 to send to `to`
     /// @param amount1Out amount of token1 to send to `to`
@@ -172,6 +177,14 @@ contract Pair is ReentrancyGuard, ERC20 {
         emit Sync(reserve0, reserve1);
     }
 
+    // totalSupply check shows first mint
+    // balance - reserve reveals newly supplied tokens
+    // Mint formula notes:
+    //   T + s / T = L1 / L0  (share increase tracks value growth)
+    //   s = (L1 - L0) / L0 * T
+    //   (x0 + dx) / (y0 + dy) = y / x => dy/dx = y/x to keep price constant
+    //   L1 - L0 / L0 = dx/x0 = dy/y0
+
     /// @notice Mint LP tokens by depositing proportional token0 and token1
     /// @param _to recipient of minted LP tokens
     /// @return liquidity amount minted
@@ -199,6 +212,10 @@ contract Pair is ReentrancyGuard, ERC20 {
 
         emit Mint(msg.sender, amount0, amount1);
     }
+
+    // Burn formula:
+    //   amount0 = LPburned / totalSupply * reserve0
+    //   amount1 = LPburned / totalSupply * reserve1
 
     /// @notice Burn LP tokens held by the pair contract and withdraw underlying
     /// @param to recipient of token0 and token1
