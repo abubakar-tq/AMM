@@ -7,7 +7,7 @@ import {IPair} from "src/interfaces/IPair.sol";
 /// @notice Provides deterministic pair address derivation and swap math
 library V2Library {
     // keccak256(type(Pair).creationCode)
-    bytes32 public constant INIT_BYTECODE_HASH = 0xbd78d9939842ea781c29e256d84172fe8a1828b98896051c5a86ab536bc0e89d;
+    bytes32 public constant INIT_BYTECODE_HASH = 0xd4d66097795c00c815aee44b1599d2d34245f5e89bdcec6895ef5125dcb57511;
 
     error V2Library_ZeroAddress();
     error V2Library_IdenticalAddress();
