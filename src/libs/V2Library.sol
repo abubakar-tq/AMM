@@ -3,9 +3,11 @@ pragma solidity 0.8.33;
 
 import {IPair} from "src/interfaces/IPair.sol";
 
+/// @title Stateless math helpers for V2 pairs and router
+/// @notice Provides deterministic pair address derivation and swap math
 library V2Library {
     // keccak256(type(Pair).creationCode)
-    bytes32 public constant INIT_BYTECODE_HASH = 0xa230a17fee0e3bae36f87b4f5c600e8603fad6b0bffdc648b91bd2a644648f65;
+    bytes32 public constant INIT_BYTECODE_HASH = 0xbd78d9939842ea781c29e256d84172fe8a1828b98896051c5a86ab536bc0e89d;
 
     error V2Library_ZeroAddress();
     error V2Library_IdenticalAddress();
@@ -13,7 +15,8 @@ library V2Library {
     error V2Library_InsufficientInputAmount();
     error V2Library_InvalidPath();
 
-    // sortTokens
+    /// @notice Sort two token addresses to enforce canonical ordering
+    /// @return token0 the lower address; token1 the higher address
     function sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
         if (tokenA == tokenB) revert V2Library_IdenticalAddress();
         if (tokenA == address(0) || tokenB == address(0)) revert V2Library_ZeroAddress();
@@ -21,7 +24,7 @@ library V2Library {
         (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
     }
 
-    // pairFor (CREATE2 address derivation)
+    /// @notice Compute pair address deterministically via CREATE2 salt
     function pairFor(address factory, address tokenA, address tokenB) internal pure returns (address pair) {
         (address token0, address token1) = sortTokens(tokenA, tokenB);
         bytes32 salt = keccak256(abi.encodePacked(token0, token1));
@@ -31,7 +34,7 @@ library V2Library {
         pair = address(uint160(uint256(h)));
     }
 
-    // getReserves
+    /// @notice Fetch reserves for a token pair from the pair contract
     function getReserves(address factory, address tokenA, address tokenB)
         internal
         view
@@ -44,23 +47,14 @@ library V2Library {
         (reserveA, reserveB) = token0 == tokenA ? (reserve0, reserve1) : (reserve1, reserve0);
     }
 
-    // Formula For quotes
-    // priceB = reserveB/reserveA (interms of A)
-    // amountB = amountA * reserveB /reserveA
-    // quote
+    /// @notice Given some amount of tokenA, returns equivalent amount of tokenB using reserves
     function quote(uint256 amountA, uint256 reserveA, uint256 reserveB) internal pure returns (uint256 amountB) {
         if (amountA <= 0) revert V2Library_InsufficientInputAmount();
         if (reserveA <= 0 || reserveB <= 0) revert V2Library_InsufficientLiquidity();
         amountB = (amountA * reserveB) / reserveA;
     }
 
-    //Derive from constant product formula
-    // (x+dx)(y-dy) = xy
-    // y+dy= xy/(x+dx)
-    //dy= - xy/ x+dx + (y(x+dx)/x+dx)
-    //dy= (-xy+xy+ydx/x+dx)
-    //dy= y * dx/ (x+dx)
-    // getAmountOut
+    /// @notice Calculates output given an input amount and reserves, after 0.3% fee
     function getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut)
         internal
         pure
@@ -73,16 +67,7 @@ library V2Library {
         amountOut = (amountInAfterFee * (reserveOut)) / ((reserveIn * 1000) + amountInAfterFee);
     }
 
-    //Derive from constant product formula
-    // (x+dx)(y-dy) = xy
-    // x+dx = xy/(y-dy)
-    // dx= xy/(y-dy) - x
-    // dx= (xy - x(y-dy))/(y-dy)
-    // dx= x * dy/(y-dy)
-    //with Fee
-    // dx(0.997) = x * dy/(y-dy)
-    // dx = (x * dy)/(y-dy) * (1/0.997)
-    // getAmountIn
+    /// @notice Calculates required input to obtain a desired output after 0.3% fee
     function getAmountIn(uint256 amountOut, uint256 reserveIn, uint256 reserveOut)
         internal
         pure
@@ -95,8 +80,7 @@ library V2Library {
         uint256 denominator = (reserveOut - amountOut) * 997;
         amountIn = (numerator / denominator) + 1; // +1 in favor of pair to combat rounding down errors
     }
-    // getAmountsOut (multi-hop)
-
+    /// @notice Multi-hop version of getAmountOut across a path
     function getAmountsOut(address factory, uint256 amountIn, address[] memory path)
         internal
         view
@@ -111,7 +95,7 @@ library V2Library {
         }
     }
 
-    // getAmountsIn (multi-hop)
+    /// @notice Multi-hop version of getAmountIn across a path
     function getAmountsIn(address factory, uint256 amountOut, address[] memory path)
         internal
         view

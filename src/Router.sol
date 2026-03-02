@@ -7,6 +7,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IPair} from "src/interfaces/IPair.sol";
 import {IFactory} from "src/interfaces/IFactory.sol";
 
+/// @title Router for multi-hop swaps and liquidity management
+/// @notice Provides swap and liquidity entrypoints analogous to Uniswap V2 Router
 contract Router {
     address public immutable FACTORY;
 
@@ -18,6 +20,7 @@ contract Router {
     error Router_IdenticalAddress();
     error Router_InsufficientInputAmount();
 
+    /// @dev Ensures the provided deadline has not expired
     modifier ensure(uint256 deadline) {
         _ensure(deadline);
         _;
@@ -27,14 +30,18 @@ contract Router {
         if (deadline < block.timestamp) revert Router_Expired();
     }
 
+    /// @param _factory factory address used for pair derivations
     constructor(address _factory) {
         FACTORY = _factory;
     }
 
-    // swapExactTokensForTokens
-    // Get total amounts
-    //Send tokens to first Pair
-    //Call internal swap which iterates over the whole path
+    /// @notice Swap an exact amount of input tokens for as many output tokens as possible
+    /// @param amountIn exact input token amount
+    /// @param amountOutMin minimum acceptable output for final hop
+    /// @param path token swap path; must contain at least two addresses
+    /// @param to recipient of final output tokens
+    /// @param deadline unix timestamp after which the call reverts
+    /// @return amounts per-hop amounts out calculated by the library
     function swapExactTokensForTokens(
         uint256 amountIn,
         uint256 amountOutMin,
@@ -53,6 +60,7 @@ contract Router {
         _swap(amounts, path, to);
     }
 
+    /// @dev Executes chained swaps across the path using precalculated amounts
     function _swap(uint256[] memory amounts, address[] memory path, address _to) private {
         for (uint256 i = 0; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
@@ -66,6 +74,13 @@ contract Router {
     }
 
     // swapTokensForExactTokens
+    /// @notice Swap as few input tokens as needed to receive an exact output amount
+    /// @param amountOut desired final output amount
+    /// @param amountInMax maximum tokens willing to spend
+    /// @param path token swap path; must contain at least two addresses
+    /// @param to recipient of final output tokens
+    /// @param deadline unix timestamp after which the call reverts
+    /// @return amounts per-hop amounts computed by the library
     function swapTokensForExactTokens(
         uint256 amountOut,
         uint256 amountInMax,
@@ -84,6 +99,16 @@ contract Router {
         _swap(amounts, path, to);
     }
 
+    /// @notice Add liquidity to a pair, creating it first if necessary
+    /// @param tokenA token to deposit
+    /// @param tokenB paired token to deposit
+    /// @param amountADesired desired amount of tokenA to add
+    /// @param amountBDesired desired amount of tokenB to add
+    /// @param amountAMin minimum tokenA to actually add (slippage guard)
+    /// @param amountBMin minimum tokenB to actually add (slippage guard)
+    /// @param to recipient of the minted LP tokens
+    /// @param deadline unix timestamp after which the call reverts
+    /// @return amountA final tokenA provided; amountB final tokenB provided; liquidity LP tokens minted
     function addLiquidity(
         address tokenA,
         address tokenB,
@@ -102,6 +127,7 @@ contract Router {
         liquidity = IPair(V2Library.pairFor(FACTORY, tokenA, tokenB)).mint(to);
     }
 
+    /// @dev Computes optimal contribution amounts, creating pair if missing
     function _addLiquidity(
         address tokenA,
         address tokenB,
@@ -143,6 +169,15 @@ contract Router {
         }
     }
 
+    /// @notice Burn LP tokens and return underlying reserves to `to`
+    /// @param tokenA token in the pair
+    /// @param tokenB other token in the pair
+    /// @param liquidity amount of LP tokens to burn
+    /// @param amountAMin minimum tokenA expected
+    /// @param amountBMin minimum tokenB expected
+    /// @param to recipient of underlying tokens
+    /// @param deadline unix timestamp after which the call reverts
+    /// @return amountA amount of tokenA returned; amountB amount of tokenB returned
     function burnLiquidity(
         address tokenA,
         address tokenB,
